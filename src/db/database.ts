@@ -6,11 +6,19 @@ import type { FileRef } from "../types";
 const DB_NAME = "lotus-eagle-dashboard";
 /** Previous name — files are copied once on first run. */
 const LEGACY_DB_NAME = "dashboard-gevin";
-const DB_VERSION = 1;
+/** Erhöhen, falls eine DB ohne `files`-Store existiert (Reparatur-Upgrade). */
+const DB_VERSION = 2;
+const LEGACY_DB_VERSION = 1;
 const FILES_STORE = "files";
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 let migrationDone = false;
+
+function ensureFilesStore(db: IDBPDatabase) {
+  if (!db.objectStoreNames.contains(FILES_STORE)) {
+    db.createObjectStore(FILES_STORE);
+  }
+}
 
 /** One-time copy of blobs from the old database name so existing uploads keep working. */
 export async function migrateLegacyIndexedDB(): Promise<void> {
@@ -19,37 +27,42 @@ export async function migrateLegacyIndexedDB(): Promise<void> {
 
   let legacy: IDBPDatabase | undefined;
   try {
-    legacy = await openDB(LEGACY_DB_NAME, DB_VERSION);
+    legacy = await openDB(LEGACY_DB_NAME, LEGACY_DB_VERSION);
   } catch {
     return;
   }
 
-  const target = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(FILES_STORE)) {
-        db.createObjectStore(FILES_STORE);
-      }
-    },
-  });
-
-  const keys = await legacy.getAllKeys(FILES_STORE);
-  for (const key of keys) {
-    const id = key as string;
-    const val = await legacy.get(FILES_STORE, id);
-    if (val && !(await target.get(FILES_STORE, id))) {
-      await target.put(FILES_STORE, val, id);
+  try {
+    if (!legacy.objectStoreNames.contains(FILES_STORE)) {
+      return;
     }
+
+    const target = await openDB(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        ensureFilesStore(db);
+      },
+    });
+
+    const keys = await legacy.getAllKeys(FILES_STORE);
+    for (const key of keys) {
+      const id = key as string;
+      const val = await legacy.get(FILES_STORE, id);
+      if (val && !(await target.get(FILES_STORE, id))) {
+        await target.put(FILES_STORE, val, id);
+      }
+    }
+  } catch (e) {
+    console.warn("[Lotus & Eagle] Legacy-IDB-Kopie:", e);
+  } finally {
+    legacy?.close();
   }
-  legacy.close();
 }
 
 function getDb() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db) {
-        if (!db.objectStoreNames.contains(FILES_STORE)) {
-          db.createObjectStore(FILES_STORE);
-        }
+        ensureFilesStore(db);
       },
     });
   }
