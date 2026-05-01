@@ -1,15 +1,16 @@
 import { User } from "lucide-react";
-import { useFileUrl } from "../hooks/useFileUrl";
+import { useFileRefUrl } from "../hooks/useFileUrl";
+import type { FileRef } from "../types";
 
 type Props = {
-  fileId?: string;
+  file?: FileRef;
   name: string;
   size?: number;
   className?: string;
 };
 
-export function Avatar({ fileId, name, size = 56, className = "" }: Props) {
-  const url = useFileUrl(fileId);
+export function Avatar({ file, name, size = 56, className = "" }: Props) {
+  const url = useFileRefUrl(file);
   const initials = name
     .split(" ")
     .filter(Boolean)

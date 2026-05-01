@@ -1,7 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Briefcase, FileText } from "lucide-react";
-import { useFileUrl } from "../hooks/useFileUrl";
+import { useFileRefUrl } from "../hooks/useFileUrl";
 import { ageFromBirthDate } from "../utils/age";
 import {
   STATUS_COLOR,
@@ -22,7 +22,7 @@ export function PersonCard({ person, onOpen }: Props) {
       data: { type: "person", personId: person.id },
     });
 
-  const photoUrl = useFileUrl(person.photo?.id);
+  const photoUrl = useFileRefUrl(person.photo);
   const companies = useStore((s) => s.companies);
   const company = companies.find((c) => c.id === person.companyId);
 

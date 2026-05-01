@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -8,12 +8,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import {
-  LayoutDashboard,
-  Plus,
-  Search,
-  UserPlus,
-} from "lucide-react";
+import { LayoutDashboard, Plus, Search, UserPlus } from "lucide-react";
 import { useStore } from "./store/useStore";
 import {
   STATUS_COLOR,
@@ -28,6 +23,8 @@ import { CompanyFormModal } from "./components/CompanyFormModal";
 import { PersonDetailModal } from "./components/PersonDetailModal";
 import { PersonDragOverlay } from "./components/PersonDragOverlay";
 import { CompanySidebar } from "./components/CompanySidebar";
+import { fetchDashboardData } from "./lib/supabaseData";
+import { isSupabaseConfigured } from "./lib/supabaseConfigured";
 
 const STATUS_FILTERS: { id: PersonStatus; defaultOn: boolean }[] = [
   { id: "available", defaultOn: true },
@@ -58,6 +55,19 @@ export default function App() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
 
   const [detailPerson, setDetailPerson] = useState<Person | null>(null);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    let cancelled = false;
+    fetchDashboardData()
+      .then(({ companies, persons }) => {
+        if (!cancelled) useStore.setState({ companies, persons });
+      })
+      .catch((err) => console.error("[Supabase] Laden fehlgeschlagen:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -131,72 +141,76 @@ export default function App() {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <header className="shrink-0 border-b border-ink-100 bg-white/80 backdrop-blur z-30 relative">
-        <div className="flex items-center gap-4 px-5 py-3">
-          <div className="flex items-center gap-2.5 shrink-0">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink-900 text-white">
-              <LayoutDashboard size={18} />
-            </span>
-            <div>
-              <h1 className="text-[15px] font-semibold text-ink-900 leading-tight">
-                Dashboard GeVin
-              </h1>
-              <p className="text-xs text-ink-500 leading-tight">
-                {persons.length} Bewerber · {activeCompanyCount} Unternehmen
-              </p>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveId(null)}
+    >
+      <div className="h-full flex">
+        <div className="flex-1 min-w-0 flex flex-col">
+          <header className="shrink-0 border-b border-ink-100 bg-white/80 backdrop-blur z-30 relative">
+            <div className="flex items-center gap-4 px-5 py-3">
+              <div className="flex items-center gap-2.5 shrink-0">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink-900 text-white">
+                  <LayoutDashboard size={18} />
+                </span>
+                <div>
+                  <h1 className="text-[15px] font-semibold text-ink-900 leading-tight">
+                    {"Lotus & Eagle"}
+                  </h1>
+                  <p className="text-xs text-ink-500 leading-tight">
+                    {persons.length} Bewerber · {activeCompanyCount} Unternehmen
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative flex-1 max-w-md ml-4">
+                <Search
+                  size={14}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400"
+                />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Name oder Arbeitswunsch suchen..."
+                  className="input pl-9"
+                />
+              </div>
+
+              <div className="ml-auto flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={openCreatePerson}
+                  className="btn-primary"
+                >
+                  <UserPlus size={15} /> Person
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="relative flex-1 max-w-md ml-4">
-            <Search
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400"
-            />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Name oder Arbeitswunsch suchen..."
-              className="input pl-9"
-            />
-          </div>
+            <div className="flex items-center gap-1.5 px-5 py-2 border-t border-ink-100 bg-white/50 overflow-x-auto">
+              <span className="text-xs font-medium text-ink-500 mr-1 shrink-0">
+                Status:
+              </span>
+              {STATUS_FILTERS.map(({ id }) => (
+                <FilterChip
+                  key={id}
+                  active={statusFilter[id]}
+                  color={STATUS_COLOR[id]}
+                  count={counts[id]}
+                  onClick={() =>
+                    setStatusFilter((s) => ({ ...s, [id]: !s[id] }))
+                  }
+                >
+                  {STATUS_LABEL[id]}
+                </FilterChip>
+              ))}
+            </div>
+          </header>
 
-          <div className="ml-auto flex items-center gap-2 shrink-0">
-            <button type="button" onClick={openCreatePerson} className="btn-primary">
-              <UserPlus size={15} /> Person
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 px-5 py-2 border-t border-ink-100 bg-white/50 overflow-x-auto">
-          <span className="text-xs font-medium text-ink-500 mr-1 shrink-0">
-            Status:
-          </span>
-          {STATUS_FILTERS.map(({ id }) => (
-            <FilterChip
-              key={id}
-              active={statusFilter[id]}
-              color={STATUS_COLOR[id]}
-              count={counts[id]}
-              onClick={() =>
-                setStatusFilter((s) => ({ ...s, [id]: !s[id] }))
-              }
-            >
-              {STATUS_LABEL[id]}
-            </FilterChip>
-          ))}
-        </div>
-      </header>
-
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={() => setActiveId(null)}
-      >
-        <div className="flex-1 min-h-0 flex">
-          <main className="flex-1 min-w-0 canvas-bg overflow-y-auto">
+          <main className="flex-1 min-h-0 canvas-bg overflow-y-auto">
             {persons.length === 0 ? (
               <EmptyPool onAddPerson={openCreatePerson} />
             ) : filteredPersons.length === 0 ? (
@@ -225,20 +239,20 @@ export default function App() {
               </div>
             )}
           </main>
-
-          <CompanySidebar
-            collapsed={sidebarCollapsed}
-            onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
-            onAddCompany={openCreateCompany}
-            onEditCompany={openEditCompany}
-            onOpenPerson={setDetailPerson}
-          />
         </div>
 
-        <DragOverlay dropAnimation={null}>
-          {activePerson ? <PersonDragOverlay person={activePerson} /> : null}
-        </DragOverlay>
-      </DndContext>
+        <CompanySidebar
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+          onAddCompany={openCreateCompany}
+          onEditCompany={openEditCompany}
+          onOpenPerson={setDetailPerson}
+        />
+      </div>
+
+      <DragOverlay dropAnimation={null}>
+        {activePerson ? <PersonDragOverlay person={activePerson} /> : null}
+      </DragOverlay>
 
       <PersonFormModal
         open={personFormOpen}
@@ -256,7 +270,7 @@ export default function App() {
         person={detailPerson}
         onEdit={openEditPerson}
       />
-    </div>
+    </DndContext>
   );
 }
 
@@ -318,9 +332,7 @@ function EmptyPool({ onAddPerson }: { onAddPerson: () => void }) {
 function EmptyFiltered() {
   return (
     <div className="h-full flex items-center justify-center p-6 text-center text-ink-400">
-      <p className="text-sm">
-        Keine Personen entsprechen den aktuellen Filtern.
-      </p>
+      <p className="text-sm">Keine Personen entsprechen den aktuellen Filtern.</p>
     </div>
   );
 }

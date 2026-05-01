@@ -75,7 +75,7 @@ export function PersonDetailModal({ open, onClose, person, onEdit }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 p-5 h-[78vh]">
         <aside className="space-y-4 overflow-y-auto pr-1">
           <div className="flex flex-col items-center text-center">
-            <Avatar fileId={person.photo?.id} name={fullName} size={140} />
+            <Avatar file={person.photo} name={fullName} size={140} />
             <h3 className="mt-3 text-lg font-semibold text-ink-900">
               {fullName}
             </h3>
@@ -124,7 +124,9 @@ export function PersonDetailModal({ open, onClose, person, onEdit }: Props) {
               <select
                 className="input !py-1.5 !text-sm"
                 value={person.companyId ?? ""}
-                onChange={(e) => movePerson(person.id, e.target.value || null)}
+                onChange={(e) => {
+                  void movePerson(person.id, e.target.value || null);
+                }}
               >
                 <option value="">— Kein Unternehmen (Pool) —</option>
                 {companies.map((c) => (

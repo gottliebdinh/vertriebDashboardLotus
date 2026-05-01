@@ -24,19 +24,26 @@ export function CompanyFormModal({ open, onClose, editing }: Props) {
     setTargetSlots(editing?.targetSlots ?? 3);
   }, [open, editing]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    if (editing) {
-      updateCompany(editing.id, {
-        name: name.trim(),
-        description: description.trim() || undefined,
-        targetSlots: Math.max(1, targetSlots),
-      });
-    } else {
-      addCompany({ name, description, targetSlots });
+    try {
+      if (editing) {
+        await updateCompany(editing.id, {
+          name: name.trim(),
+          description: description.trim() || undefined,
+          targetSlots: Math.max(1, targetSlots),
+        });
+      } else {
+        await addCompany({ name, description, targetSlots });
+      }
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert(
+        err instanceof Error ? err.message : "Speichern fehlgeschlagen.",
+      );
     }
-    onClose();
   }
 
   return (

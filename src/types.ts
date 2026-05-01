@@ -4,6 +4,15 @@ export type FileRef = {
   name: string;
   type: string;
   size: number;
+  /** Pfad im Bucket `person-files`, wenn Datei in Supabase Storage liegt */
+  storagePath?: string;
+};
+
+/** Original-Dateien für Supabase-Upload (parallel zu FileRef in IndexedDB). */
+export type PersonUploadFiles = {
+  photo?: File;
+  cv?: File;
+  coverLetter?: File;
 };
 
 export type PersonStatus = "available" | "proposed" | "placed";

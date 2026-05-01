@@ -1,20 +1,41 @@
 import { useEffect, useState } from "react";
 import { getFileUrl } from "../db/database";
+import { isSupabaseConfigured } from "../lib/supabaseConfigured";
+import { PERSON_FILES_BUCKET } from "../lib/storageBucket";
+import { supabase } from "../lib/supabase";
+import type { FileRef } from "../types";
 
-/** Resolves a stored file id to an object URL and revokes it on unmount. */
-export function useFileUrl(fileId: string | undefined | null) {
+/** URL für Anhang: Supabase signierte URL oder lokales Blob aus IndexedDB. */
+export function useFileRefUrl(ref?: FileRef | null): string | null {
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    let createdUrl: string | null = null;
 
-    if (!fileId) {
+    if (!ref?.id) {
       setUrl(null);
       return;
     }
 
-    getFileUrl(fileId).then((u) => {
+    if (ref.storagePath && isSupabaseConfigured()) {
+      supabase.storage
+        .from(PERSON_FILES_BUCKET)
+        .createSignedUrl(ref.storagePath, 60 * 60 * 12)
+        .then(({ data, error }) => {
+          if (!active) return;
+          if (error || !data?.signedUrl) {
+            setUrl(null);
+            return;
+          }
+          setUrl(data.signedUrl);
+        });
+      return () => {
+        active = false;
+      };
+    }
+
+    let createdUrl: string | null = null;
+    getFileUrl(ref.id).then((u) => {
       if (!active) {
         if (u) URL.revokeObjectURL(u);
         return;
@@ -27,7 +48,14 @@ export function useFileUrl(fileId: string | undefined | null) {
       active = false;
       if (createdUrl) URL.revokeObjectURL(createdUrl);
     };
-  }, [fileId]);
+  }, [ref?.id, ref?.storagePath]);
 
   return url;
+}
+
+/** @deprecated Nutze useFileRefUrl mit FileRef */
+export function useFileUrl(fileId: string | undefined | null): string | null {
+  return useFileRefUrl(
+    fileId ? { id: fileId, name: "", type: "", size: 0 } : null,
+  );
 }

@@ -6,7 +6,7 @@ export function PersonDragOverlay({ person }: { person: Person }) {
   return (
     <div className="rotate-2 scale-105 cursor-grabbing">
       <div className="flex items-center gap-3 rounded-2xl border border-ink-200 bg-white p-3 shadow-cardHover w-[280px]">
-        <Avatar fileId={person.photo?.id} name={fullName} size={52} />
+        <Avatar file={person.photo} name={fullName} size={52} />
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-ink-900 truncate">
             {fullName || "Unbenannt"}

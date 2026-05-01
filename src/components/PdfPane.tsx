@@ -1,5 +1,5 @@
 import { Download, FileText } from "lucide-react";
-import { useFileUrl } from "../hooks/useFileUrl";
+import { useFileRefUrl } from "../hooks/useFileUrl";
 import type { FileRef } from "../types";
 
 type Props = {
@@ -8,7 +8,7 @@ type Props = {
 };
 
 export function PdfPane({ title, file }: Props) {
-  const url = useFileUrl(file?.id);
+  const url = useFileRefUrl(file);
 
   return (
     <div className="flex flex-col h-full bg-ink-100/50 rounded-xl overflow-hidden border border-ink-100">

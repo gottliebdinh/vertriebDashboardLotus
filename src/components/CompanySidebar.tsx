@@ -5,10 +5,12 @@ import {
   Building2,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   MoreHorizontal,
   Pencil,
   Plus,
+  Search as SearchIcon,
   Trash2,
   X,
 } from "lucide-react";
@@ -41,75 +43,105 @@ export function CompanySidebar({
   const companies = useStore((s) => s.companies);
   const persons = useStore((s) => s.persons);
   const [showArchived, setShowArchived] = useState(false);
+  const [search, setSearch] = useState("");
 
-  const visible = companies.filter((c) => showArchived || !c.archived);
   const activeCount = companies.filter((c) => !c.archived).length;
   const archivedCount = companies.length - activeCount;
 
+  const visible = companies.filter((c) => {
+    if (!showArchived && c.archived) return false;
+    if (!search.trim()) return true;
+    return c.name.toLowerCase().includes(search.trim().toLowerCase());
+  });
+
   if (collapsed) {
     return (
-      <aside className="shrink-0 w-12 border-l border-ink-100 bg-white flex flex-col items-center py-3 gap-2">
+      <aside className="shrink-0 w-12 border-l border-ink-100 bg-white flex flex-col items-center py-3 gap-3">
         <button
           type="button"
           onClick={onToggleCollapse}
           className="btn-ghost !p-2"
           title="Unternehmen einblenden"
         >
-          <ChevronRight size={16} />
+          <ChevronLeft size={16} />
         </button>
-        <div className="h-px w-6 bg-ink-100 my-1" />
+        <div className="h-px w-6 bg-ink-100" />
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
+          className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
           title={`${activeCount} Unternehmen`}
         >
-          <Building2 size={16} />
+          <Building2 size={18} />
+          {activeCount > 0 && (
+            <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-ink-900 text-white text-[10px] font-semibold">
+              {activeCount}
+            </span>
+          )}
         </button>
-        {activeCount > 0 && (
-          <span className="text-[10px] font-semibold text-ink-700">
-            {activeCount}
-          </span>
-        )}
       </aside>
     );
   }
 
   return (
-    <aside className="shrink-0 w-[380px] border-l border-ink-100 bg-ink-50/40 flex flex-col min-h-0">
-      <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-ink-100 bg-white">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-          <Building2 size={15} />
-        </span>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold text-ink-900 leading-tight">
-            Unternehmen
-          </h2>
-          <p className="text-[11px] text-ink-500 leading-tight">
-            {activeCount} aktiv
-            {archivedCount > 0 ? ` · ${archivedCount} archiviert` : ""}
-          </p>
+    <aside className="shrink-0 w-[440px] border-l border-ink-100 bg-ink-50/40 flex flex-col min-h-0 h-full">
+      <div className="shrink-0 px-4 pt-4 pb-3 border-b border-ink-100 bg-white">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+            <Building2 size={17} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-[15px] font-semibold text-ink-900 leading-tight">
+              Unternehmen
+            </h2>
+            <p className="text-[11px] text-ink-500 leading-tight mt-0.5">
+              {activeCount} aktiv
+              {archivedCount > 0 ? ` · ${archivedCount} archiviert` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-primary !px-3 !py-1.5 text-xs"
+            onClick={onAddCompany}
+          >
+            <Plus size={13} /> Neu
+          </button>
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="btn-ghost !p-1.5"
+            title="Sidebar einklappen"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
-        <button
-          type="button"
-          className="btn-secondary !px-2.5 !py-1.5 text-xs"
-          onClick={onAddCompany}
-        >
-          <Plus size={13} /> Neu
-        </button>
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="btn-ghost !p-1.5"
-          title="Sidebar einklappen"
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
 
-      {archivedCount > 0 && (
-        <div className="shrink-0 px-4 py-2 border-b border-ink-100 bg-white">
-          <label className="flex items-center gap-2 text-xs text-ink-600 cursor-pointer">
+        <div className="relative mt-3">
+          <SearchIcon
+            size={14}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400"
+          />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Unternehmen suchen..."
+            className="input pl-9 pr-9"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 btn-ghost !p-1"
+              aria-label="Suche zurücksetzen"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        {archivedCount > 0 && (
+          <label className="flex items-center gap-2 text-xs text-ink-600 cursor-pointer mt-2.5">
             <input
               type="checkbox"
               checked={showArchived}
@@ -118,12 +150,16 @@ export function CompanySidebar({
             />
             Archiv ({archivedCount}) anzeigen
           </label>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
         {visible.length === 0 ? (
-          <EmptyState onAdd={onAddCompany} />
+          search.trim() ? (
+            <EmptySearch query={search} />
+          ) : (
+            <EmptyState onAdd={onAddCompany} />
+          )
         ) : (
           visible.map((c) => (
             <CompanyDropCard
@@ -137,6 +173,17 @@ export function CompanySidebar({
         )}
       </div>
     </aside>
+  );
+}
+
+function EmptySearch({ query }: { query: string }) {
+  return (
+    <div className="h-full min-h-[200px] flex items-center justify-center text-center text-ink-400 px-4">
+      <p className="text-sm">
+        Kein Unternehmen für „<span className="text-ink-700">{query}</span>"
+        gefunden.
+      </p>
+    </div>
   );
 }
 
@@ -354,7 +401,7 @@ function SlotsRow({ target, placed }: { target: number; placed: Person[] }) {
             title={`${p.firstName} ${p.lastName}`}
           >
             <Avatar
-              fileId={p.photo?.id}
+              file={p.photo}
               name={`${p.firstName} ${p.lastName}`}
               size={22}
             />
@@ -392,7 +439,7 @@ function AssignedPersonRow({
         onClick={onOpen}
         className="flex items-center gap-2 flex-1 min-w-0 text-left"
       >
-        <Avatar fileId={person.photo?.id} name={fullName} size={28} />
+        <Avatar file={person.photo} name={fullName} size={28} />
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-medium text-ink-900 truncate leading-tight">
             {fullName || "Unbenannt"}

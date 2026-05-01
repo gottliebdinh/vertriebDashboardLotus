@@ -4,7 +4,7 @@ import { FileInput } from "./FileInput";
 import { Avatar } from "./Avatar";
 import { useStore } from "../store/useStore";
 import { saveFile, deleteFile } from "../db/database";
-import type { FileRef, Person } from "../types";
+import type { FileRef, Person, PersonUploadFiles } from "../types";
 
 type Props = {
   open: boolean;
@@ -37,11 +37,14 @@ export function PersonFormModal({ open, onClose, editing }: Props) {
   const updatePerson = useStore((s) => s.updatePerson);
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
+  /** Original browser-Files für zuverlässigen Supabase-Upload */
+  const [uploadFiles, setUploadFiles] = useState<PersonUploadFiles>({});
   /** Files saved during this session that we may need to clean up on cancel. */
   const [pendingFileIds, setPendingFileIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
+    setUploadFiles({});
     if (editing) {
       setForm({
         firstName: editing.firstName,
@@ -62,17 +65,23 @@ export function PersonFormModal({ open, onClose, editing }: Props) {
   async function handleFile(field: "photo" | "cv" | "coverLetter", file: File) {
     const ref = await saveFile(file);
     setPendingFileIds((ids) => [...ids, ref.id]);
+    setUploadFiles((u) => ({ ...u, [field]: file }));
     setForm((f) => {
       const prev = f[field];
-      if (prev) deleteFile(prev.id).catch(() => {});
+      if (prev?.id && !prev.storagePath) deleteFile(prev.id).catch(() => {});
       return { ...f, [field]: ref };
     });
   }
 
   function handleRemove(field: "photo" | "cv" | "coverLetter") {
+    setUploadFiles((u) => {
+      const n = { ...u };
+      delete n[field];
+      return n;
+    });
     setForm((f) => {
       const prev = f[field];
-      if (prev) deleteFile(prev.id).catch(() => {});
+      if (prev?.id && !prev.storagePath) deleteFile(prev.id).catch(() => {});
       return { ...f, [field]: undefined };
     });
   }
@@ -100,11 +109,16 @@ export function PersonFormModal({ open, onClose, editing }: Props) {
         coverLetter: form.coverLetter,
       };
       if (editing) {
-        updatePerson(editing.id, data);
+        await updatePerson(editing.id, data, uploadFiles);
       } else {
-        addPerson(data);
+        await addPerson(data, uploadFiles);
       }
       onClose();
+    } catch (e) {
+      console.error(e);
+      alert(
+        e instanceof Error ? e.message : "Speichern fehlgeschlagen (Supabase).",
+      );
     } finally {
       setSaving(false);
     }
@@ -140,7 +154,7 @@ export function PersonFormModal({ open, onClose, editing }: Props) {
         className="p-5 space-y-5"
       >
         <div className="flex items-center gap-4 p-4 rounded-xl bg-ink-50">
-          <Avatar fileId={form.photo?.id} name={fullName} size={64} />
+          <Avatar file={form.photo} name={fullName} size={64} />
           <div className="flex-1">
             <p className="text-sm font-medium text-ink-900">{fullName}</p>
             {form.jobWish && (
